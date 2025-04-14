@@ -3,12 +3,14 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Exports\PembeliansExport;
+use App\Exports\SalesExport;
 use App\Http\Controllers\Controller;
 use App\Models\Pembelian;
 use App\Models\Sales;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
+use Maatwebsite\Excel\Excel as ExcelExcel;
 use Maatwebsite\Excel\Facades\Excel;
 
 class PembelianController extends Controller
@@ -102,6 +104,6 @@ class PembelianController extends Controller
 
     public function export()
     {
-        // return Excel::download(new PembeliansExport, 'pembelian.xlsx');
+        return Excel::download(new SalesExport, 'pembelian.xlsx');
     }
 }

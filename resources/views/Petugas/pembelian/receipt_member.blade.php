@@ -10,12 +10,12 @@
                 </div>
             </div>
             <div class="flex space-x-3">
-                <button class="flex items-center bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition-all duration-200 shadow-md hover:shadow-lg">
+                <a href="{{ route('petugas.pembelian.export-pdf') }}" class="flex items-center bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition-all duration-200 shadow-md hover:shadow-lg">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                     </svg>
                     Unduh
-                </button>
+                </a>
             </div>
         </div>
 
@@ -51,7 +51,7 @@
         <div class="grid grid-cols-2 gap-6 mb-8">
             <div class="bg-blue-50 p-4 rounded-lg border border-blue-100">
                 <p class="text-sm font-medium text-blue-800 mb-1">POIN DIGUNAKAN</p>
-                <p class="text-2xl font-bold text-blue-600">0</p>
+                <p class="text-2xl font-bold text-blue-600">{{ number_format($points, 0, ',', '.')}}</p>
             </div>
             <div class="bg-gray-50 p-4 rounded-lg border border-gray-200 text-right">
                 <p class="text-sm font-medium text-gray-700 mb-1">KASIR</p>

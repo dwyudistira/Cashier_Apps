@@ -69,7 +69,7 @@
                                         </svg>
                                         Lihat
                                     </button>
-                                    <a href="#" class="text-amber-600 hover:text-amber-900 bg-amber-50 px-3 py-1 rounded-md text-sm flex items-center">
+                                    <a href="{{ route('petugas.pembelian.export-pdf-id', $purchase['invoice_number']) }}" class="text-amber-600 hover:text-amber-900 bg-amber-50 px-3 py-1 rounded-md text-sm flex items-center">
                                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                                         </svg>

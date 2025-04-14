@@ -14,14 +14,14 @@
                         </tr>
                     </thead>
                     <tbody class="text-gray-800 font-medium">
-                        <tr>
-                            @foreach($cartData as $data)
+                        @foreach($cartData as $data)
+                            <tr>
                                 <td class="py-2">{{ $data['nama'] }}</td>
                                 <td>{{ $data['jumlah'] }}</td>
                                 <td>{{ number_format($data['subtotal'], 0, ',', '.') }}</td>
                                 <td>{{ number_format($data['subtotal'], 0, ',', '.') }}</td>
-                            @endforeach
-                        </tr>
+                            </tr>
+                        @endforeach
                     </tbody>
 
                 </table>

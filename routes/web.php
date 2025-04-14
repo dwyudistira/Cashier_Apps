@@ -72,6 +72,11 @@ Route::middleware(['auth', 'petugas'])->group(function () {
     Route::get('/petugas/pembelian/receipt', [PetugasPembelianController::class, 'receiptNonMember'])->name('petugas.pembelian.receipt');
     Route::post('/petugas/pembelian/receipt-store', [PetugasPembelianController::class, 'storeNonMember'])->name('petugas.pembelian.receipt_store');
 
+    //Export 
+    Route::get('/petugas/pembelian/export-pdf', [PetugasPembelianController::class, 'exportPdf'])->name('petugas.pembelian.export-pdf');
+    Route::get('/export-pdf/{id}', [PetugasPembelianController::class, 'exportPdfId'])->name('petugas.pembelian.export-pdf-id');
+
+
     //product
     Route::get('/petugas/product', [PetugasProdukController::class, "index"])->name("petugas.product");
 });

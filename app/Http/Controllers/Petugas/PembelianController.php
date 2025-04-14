@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Member;
 use App\Models\Product;
 use App\Models\Sales;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\Auth;
@@ -136,11 +137,9 @@ class PembelianController extends Controller
 
         $sales = Sales::latest()->first();
 
-        $members = Member::latest()->first();
+        $members = Member::find($sales->member_id);
 
         $points = Member::all();
-
-
 
         return view('petugas.pembelian.detail_member', compact('cartData', 'sales', 'members'));
     }
@@ -152,12 +151,14 @@ class PembelianController extends Controller
         $sales = Sales::latest()->first();
     
         $members = Member::latest()->first();
-    
+        
         $subtotal = array_sum(array_column($cartData, 'subtotal'));
+
+        $points = Member::where('id', $sales->member_id)->value('points');
     
-        $kembalian = $sales->total_paid - $subtotal;
+        $kembalian = $sales->total_paid - $points;
   
-        return view("petugas.pembelian.receipt_member", compact('cartData', 'sales', 'members', 'kembalian', 'subtotal'));
+        return view("petugas.pembelian.receipt_member", compact('cartData', 'sales', 'members', 'kembalian', 'subtotal', 'points'));
     }
 
     public function storeMember(Request $request)
@@ -236,64 +237,160 @@ class PembelianController extends Controller
     public function simpanMember(Request $request)
     {
         $request->validate([
-            'nama' => 'required|string',
+            'nama' => 'required|string', // Validasi nama
             'poin' => 'required|numeric',
             'total_bayar' => 'required|numeric',
-            'member_id' => 'required|exists:members,id',
         ]);
     
-        $member = Member::findOrFail($request->member_id);
+        // Cari member berdasarkan nama
+        $member = Member::where('name', $request->nama)->firstOrFail();
     
         $gunakanPoin = $request->has('gunakan_poin');
+        $poin_value = 100;
         $poin_digunakan = 0;
-        $total_bayar = $request->total_bayar;
-        $poin_value = 100; // Misal: 1 poin = Rp 100
-        $harga_akhir = $total_bayar; // Harga final yang dibayar
-        $diskon_member = 0;
+        $harga_akhir = $request->total_bayar;
     
         if ($gunakanPoin && $member->points > 0) {
             $potongan = $member->points * $poin_value;
     
-            if ($potongan >= $total_bayar) {
-                $poin_digunakan = ceil($total_bayar / $poin_value);
+            if ($potongan >= $harga_akhir) {
+                $poin_digunakan = ceil($harga_akhir / $poin_value);
                 $harga_akhir = 0;
             } else {
                 $poin_digunakan = $member->points;
-                $harga_akhir = $total_bayar - $potongan;
+                $harga_akhir -= $potongan;
             }
     
-            $diskon_member = $poin_digunakan * $poin_value;
-    
-            // Update poin member
+            // Update points member
             $member->points -= $poin_digunakan;
             $member->save();
         }
     
-        // Simpan transaksi ke Sales
-        Sales::create([
-            'invoice_number' => 'INV-' . strtoupper(uniqid()),
-            'name' => $member->name,
-            'product_id' => null,
-            'member_id' => $member->id,
-            'product_data' => null,
-            'quantity' => 1,
-            'subtotal' => $total_bayar,
-            'diskon_point' => $diskon_member,
-            'points' => $poin_digunakan,
-            'total_paid' => $harga_akhir,
-        ]);
+        // Cari sales berdasarkan nama member
+        $sale = Sales::where('name', $member->name)->first();
     
-        return redirect()->route('petugas.pembelian.receipt_member')->with('success', 'Transaksi berhasil disimpan.');
+        if ($sale) {
+            // Kalau ada transaksi sebelumnya, update total_paid
+            $sale->total_paid = $harga_akhir;
+            $sale->save();
+        } else {
+            // Kalau belum ada transaksi, buat transaksi baru
+            $sale = new Sales();
+            $sale->member_id = $member->id;
+            $sale->name = $member->name;
+            $sale->invoice_number = 'INV-' . strtoupper(uniqid());
+            $sale->total_paid = $harga_akhir;
+            $sale->save();
+        }
+    
+        return redirect()->route('petugas.pembelian.receipt_member')
+                         ->with('success', 'Transaksi berhasil disimpan.');
     }
+    
     
     // Export
-    public function exportExcel()
-    {
-        // Coming soon
-    }
-
     public function exportPdf()
     {
-        // Coming soon
+        $latestInvoice = Sales::latest('created_at')->first();
+    
+        if (!$latestInvoice) {
+            return redirect()->back()->with('error', 'Tidak ada data transaksi untuk diexport.');
+        }
+    
+        // Ambil semua data berdasarkan invoice_number
+        $sales = Sales::where('invoice_number', $latestInvoice->invoice_number)->get();
+    
+        // Ambil member
+        $member = null;
+        if ($latestInvoice->member_id) {
+            $member = Member::find($latestInvoice->member_id);
+        }
+    
+        // Ambil semua produk dari product_data
+        $cartData = $sales->map(function ($sale) {
+            $product = json_decode($sale->product_data, true);
+            return [
+                'nama' => $product['nama'] ?? '-',
+                'jumlah' => $product['jumlah'] ?? 0,
+                'subtotal' => $product['subtotal'] ?? 0,
+            ];
+        });
+    
+        $subtotal = $sales->sum('subtotal');
+        $totalPaid = $latestInvoice->total_paid;
+        $kembalian = $totalPaid - $subtotal;
+        $points = $latestInvoice->points ?? 0;
+    
+        $data = [
+            'sales' => $latestInvoice,
+            'cartData' => $cartData,
+            'subtotal' => $subtotal,
+            'totalPaid' => $totalPaid,
+            'kembalian' => $kembalian,
+            'user' => Auth::user(),
+            'member' => $member,
+            'points' => $points
+        ];
+    
+        $pdf = Pdf::loadView('petugas.pembelian.export_pdf', $data)
+                 ->setPaper('a4', 'portrait')
+                 ->setOption('isRemoteEnabled', true)
+                 ->setOption('defaultFont', 'sans-serif');
+    
+        return $pdf->download('invoice_' . $latestInvoice->invoice_number . '.pdf');
     }
+    
+    public function exportPdfId($id)
+    {
+        // Cari data sales berdasarkan ID atau invoice_number
+        $sales = Sales::where('invoice_number', $id)->get();
+
+        // dd($sales);
+    
+        if ($sales->isEmpty()) {
+            return redirect()->back()->with('error', 'Data transaksi tidak ditemukan.');
+        }
+    
+        $latestInvoice = $sales->first(); // ambil salah satu record (semua invoice_number-nya sama)
+        
+        // Ambil member (jika ada)
+        $member = null;
+        if ($latestInvoice->member_id) {
+            $member = Member::find($latestInvoice->member_id);
+        }
+    
+        // Ambil semua produk dari product_data
+        $cartData = $sales->map(function ($sale) {
+            $product = json_decode($sale->product_data, true);
+            return [
+                'nama' => $product['nama'] ?? '-',
+                'jumlah' => $product['jumlah'] ?? 0,
+                'subtotal' => $product['subtotal'] ?? 0,
+            ];
+        });
+    
+        $subtotal = $sales->sum('subtotal');
+        $totalPaid = $latestInvoice->total_paid;
+        $kembalian = $totalPaid - $subtotal;
+        $points = $latestInvoice->points ?? 0;
+    
+        $data = [
+            'sales' => $latestInvoice,
+            'cartData' => $cartData,
+            'subtotal' => $subtotal,
+            'totalPaid' => $totalPaid,
+            'kembalian' => $kembalian,
+            'user' => Auth::user(),
+            'member' => $member,
+            'points' => $points
+        ];
+    
+        $pdf = Pdf::loadView('petugas.pembelian.export_pdf', $data)
+                 ->setPaper('a4', 'portrait')
+                 ->setOption('isRemoteEnabled', true)
+                 ->setOption('defaultFont', 'sans-serif');
+    
+        return $pdf->download('invoice_' . $latestInvoice->invoice_number . '.pdf');
+    }
+    
 }
