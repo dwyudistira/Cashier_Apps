@@ -344,8 +344,6 @@ class PembelianController extends Controller
     {
         // Cari data sales berdasarkan ID atau invoice_number
         $sales = Sales::where('invoice_number', $id)->get();
-
-        // dd($sales);
     
         if ($sales->isEmpty()) {
             return redirect()->back()->with('error', 'Data transaksi tidak ditemukan.');
